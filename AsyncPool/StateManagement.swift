@@ -9,12 +9,28 @@ final class StateManagement {
     @MainActor
     static let shared = StateManagement()
     
-    var states: [Int: [UInt64]] = [:]
-    
-    func add(id: Int, value: UInt64) async {
+    // Success & Failure
+    var states: [Int: (Int, Int)] = [:]
+    var values: [Int: [UInt64]] = [:]
+        
+    func add(id: Int, value: UInt64) {
         if states[id] == nil {
-            states[id] = []
+            states[id] = (0, 0)
+            values[id] = []
         }
-        states[id]!.append(value)
+        if value > 200000000000000000 {
+            states[id]!.0 += 1
+        } else {
+            states[id]!.1 += 1
+        }
+        values[id]!.append(value)
+    }
+        
+    func printState(id: Int) {
+        if states[id] != nil {
+            print("ID: \(id), State: \(states[id]!), Value: \(values[id]!)")
+        } else {
+            print("ID: \(id), failed")
+        }
     }
 }

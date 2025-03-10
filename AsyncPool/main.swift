@@ -14,8 +14,8 @@ let a = AsyncIteration()
 let t0 = Task {
     let id = 0
     await a.trigger(id: id)
-    if let state = StateManagement.shared.states[id] {
-        print("ID: \(id), Value: \(state)")
+    if let state = StateManagement.shared.states[id], let values = StateManagement.shared.values[id] {
+        print("ID: \(id), State: \(state), Value: \(values)")
     } else {
         print("ID: \(id), failed")
     }
