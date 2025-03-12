@@ -7,20 +7,7 @@
 
 import AsyncAlgorithms
 
-final actor AsyncIteration {
-    @MainActor
-    var stateManagement = StateManagement.shared
-    
-    var channels: [Int: AsyncChannel<Int>] = [:]
-}
-
-extension AsyncIteration {
-    private func getChannel(_ id: Int) -> AsyncChannel<Int> {
-        if channels[id] == nil {
-            channels[id] = AsyncChannel<Int>()
-        }
-        return channels[id]!
-    }
+final actor AsyncIteration: Sendable {
 }
 
 extension AsyncIteration {
@@ -56,37 +43,40 @@ extension AsyncIteration {
 }
 
 extension AsyncIteration {
-    func trigger(id: Int) async {
-        let channel = getChannel(id)
-        await withTaskGroup(of: UInt64.self) { [weak self] group in
-            var threads = 0
-            for await point in channel {
-                if point >= 0 {
-                    let timeLimit = Int.random(in: 2...6)
-                    if threads > 3 {
-                        if let value = await group.next() {
-                            await self?.stateManagement.add(id: id, value: value)
+    func trigger(id: Int, channel triggerChannel: AsyncChannel<Int>) async -> AsyncChannel<(Int, UInt64)> {
+        let monitorChannel = AsyncChannel<(Int, UInt64)>()
+        Task {
+            await withTaskGroup(of: UInt64.self) { group in
+                var threads = 0
+                for await point in triggerChannel {
+                    if point >= 0 {
+                        let timeLimit = Int.random(in: 2...6)
+                        if threads > 3 {
+                            if let value = await group.next() {
+                                await monitorChannel.send((id, value))
+                            }
                         }
+                        group.addTask { [weak self] in
+                            if let value = await self?.process(id, point, timeLimit: timeLimit) {
+                                return value
+                            } else { return 0 as UInt64}
+                        }
+                        threads += 1
+                    } else {
+                        triggerChannel.finish()
                     }
-                    group.addTask {
-                        guard let value = await self?.process(id, point, timeLimit: timeLimit) else { return 0 as UInt64 }
-                        return value
-                    }
-                    threads += 1
-                } else {
-                    channel.finish()
                 }
-            }
-            for await value in group {
-                await self?.stateManagement.add(id: id, value: value)
+                for await value in group {
+                    await monitorChannel.send((id, value))
+                }
+                await monitorChannel.send((-1, 0))
             }
         }
-        channels[id] = nil
+        return monitorChannel
     }
     
-    func doIt(id: Int) async {
-        let channel = getChannel(id)
-        for point in 0..<10 {
+    func doIt(n: Int, channel: AsyncChannel<Int>) async {
+        for point in 0..<n {
             await channel.send(point)
         }
         // finalize

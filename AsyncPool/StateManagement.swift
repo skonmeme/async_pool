@@ -5,6 +5,8 @@
 //  Created by Sung Gon Yi on 3/7/25.
 //
 
+import AsyncAlgorithms
+
 final class StateManagement {
     @MainActor
     static let shared = StateManagement()
@@ -25,7 +27,7 @@ final class StateManagement {
         }
         values[id]!.append(value)
     }
-        
+            
     func printState(id: Int) {
         if states[id] != nil {
             print("ID: \(id), State: \(states[id]!), Value: \(values[id]!)")
